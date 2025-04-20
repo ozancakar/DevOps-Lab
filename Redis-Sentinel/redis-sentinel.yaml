@@ -1,0 +1,253 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-config
+  namespace: default
+  labels:
+    app: redis
+    role: config
+data:
+  redis.conf: |
+    bind 0.0.0.0
+    protected-mode no
+    dir /data
+    appendonly yes
+    appendfilename "appendonly.aof"
+    appendfsync everysec
+    maxclients 20000
+    timeout 600
+  sentinel.conf: |
+    bind 0.0.0.0
+    sentinel resolve-hostnames yes
+    sentinel monitor mymaster redis-master.default.svc.cluster.local 6379 2
+    sentinel down-after-milliseconds mymaster 5000
+    sentinel failover-timeout mymaster 10000
+    sentinel parallel-syncs mymaster 1
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-master
+  namespace: default
+  labels:
+    app: redis
+    role: master
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+      role: master
+  template:
+    metadata:
+      labels:
+        app: redis
+        role: master
+    spec:
+      containers:
+      - name: redis
+        image: redis:latest
+        command: ["redis-server", "/etc/redis/redis.conf"]
+        ports:
+        - containerPort: 6379
+        volumeMounts:
+        - name: redis-config
+          mountPath: /etc/redis
+        - name: redis-data
+          mountPath: /data
+        livenessProbe:
+          tcpSocket:
+            port: 6379
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        readinessProbe:
+          tcpSocket:
+            port: 6379
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: redis-config
+        configMap:
+          name: redis-config
+          items:
+          - key: redis.conf
+            path: redis.conf
+      - name: redis-data
+        hostPath:
+          path: /path/to/redissentinel/master
+          type: DirectoryOrCreate
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-slave
+  namespace: default
+  labels:
+    app: redis
+    role: slave
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: redis
+      role: slave
+  template:
+    metadata:
+      labels:
+        app: redis
+        role: slave
+    spec:
+      containers:
+      - name: redis
+        image: redis:latest
+        command: ["redis-server", "/etc/redis/redis.conf", "--replicaof", "redis-master.default.svc.cluster.local", "6379"]
+        ports:
+        - containerPort: 6379
+        volumeMounts:
+        - name: redis-config
+          mountPath: /etc/redis
+        - name: redis-data
+          mountPath: /data
+        livenessProbe:
+          tcpSocket:
+            port: 6379
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        readinessProbe:
+          tcpSocket:
+            port: 6379
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: redis-config
+        configMap:
+          name: redis-config
+          items:
+          - key: redis.conf
+            path: redis.conf
+      - name: redis-data
+        hostPath:
+          path: /path/to/redissentinel/slave
+          type: DirectoryOrCreate
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-sentinel
+  namespace: default
+  labels:
+    app: redis
+    role: sentinel
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: redis
+      role: sentinel
+  template:
+    metadata:
+      labels:
+        app: redis
+        role: sentinel
+    spec:
+      containers:
+      - name: sentinel
+        image: redis:latest
+        command: ["/bin/sh", "-c", "cp /etc/redis/sentinel.conf /data/sentinel.conf && redis-server /data/sentinel.conf --sentinel"]
+        ports:
+        - containerPort: 26379
+        volumeMounts:
+        - name: sentinel-config
+          mountPath: /etc/redis
+        - name: redis-data
+          mountPath: /data
+        livenessProbe:
+          tcpSocket:
+            port: 26379
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        readinessProbe:
+          tcpSocket:
+            port: 26379
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: sentinel-config
+        configMap:
+          name: redis-config
+          items:
+          - key: sentinel.conf
+            path: sentinel.conf
+      - name: redis-data
+        hostPath:
+          path: /path/to/redissentinel/sentinel
+          type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-master
+  namespace: default
+  labels:
+    app: redis
+    role: master
+spec:
+  type: NodePort
+  ports:
+  - port: 6379
+    targetPort: 6379
+    nodePort: 30002
+  selector:
+    app: redis
+    role: master
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-slave
+  namespace: default
+  labels:
+    app: redis
+    role: slave
+spec:
+  type: NodePort
+  ports:
+  - port: 6379
+    targetPort: 6379
+    nodePort: 30003
+  selector:
+    app: redis
+    role: slave
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-sentinel
+  namespace: default
+  labels:
+    app: redis
+    role: sentinel
+spec:
+  type: NodePort
+  ports:
+  - port: 26379
+    targetPort: 26379
+    nodePort: 30001
+  selector:
+    app: redis
+    role: sentinel
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-loadbalancer
+  namespace: default
+  labels:
+    app: redis
+    role: loadbalancer
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 6379
+    targetPort: 6379
