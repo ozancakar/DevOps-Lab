@@ -1,0 +1,25 @@
+# ==================== MetalLB IP Address Pool ==================== #
+# NOTE:
+# - Replace 'x.x.x.x-x.x.x.x' with your own internal IP range.
+# - This range must be within the same subnet as your Kubernetes nodes.
+# - Avoid conflicts with DHCP or static IPs already in use.
+
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: default-address-pool
+  namespace: metallb-system
+spec:
+  addresses:
+  - x.x.x.x-x.x.x.x  # <--- CHANGE THIS LINE with your desired IP pool
+
+# ==================== MetalLB L2 Advertisement ==================== #
+# This allows MetalLB to advertise IPs at Layer 2 (ARP).
+# Useful for bare-metal setups or local clusters without BGP.
+
+---
+apiVersion: metallb.io/v1beta1
+kind: L2Advertisement
+metadata:
+  name: l2-advertisement
+  namespace: metallb-system
