@@ -1,33 +1,38 @@
 # RabbitMQ Kubernetes Kurulum Rehberi
 
-Bu rehber, RabbitMQ'yu bir Kubernetes ortamında kurmanıza yardımcı olacaktır. RabbitMQ'yu bir `LoadBalancer` servisi üzerinden MetalLB kullanarak dışa açacağız ve RabbitMQ yönetim arayüzüne nasıl erişebileceğinizi adım adım açıklayacağız.
+# RabbitMQ Kubernetes Installation Guide
 
-## 🧱 Gereksinimler
+This guide will help you set up RabbitMQ in a Kubernetes environment. We will expose RabbitMQ using a `LoadBalancer` service through MetalLB, and we will explain step-by-step how to access the RabbitMQ management interface.
 
-Başlamadan önce aşağıdaki gereksinimlerin sağlandığından emin olun:
+## 🧱 Requirements
 
-- Çalışan bir Kubernetes kümesi.
-- `kubectl` yüklü ve kümenizle iletişim kuracak şekilde yapılandırılmış olmalı.
-- MetalLB yüklenmiş olmalı, böylece dış IP alabiliriz.
-- DNS veya `hosts` dosyanızı değiştirme yetkiniz olmalı.
+Before starting, make sure the following requirements are met:
 
-## ⚙️ Adım Adım Kurulum Talimatları
+- A running Kubernetes cluster.
+- `kubectl` is installed and configured to communicate with your cluster.
+- MetalLB is installed so that we can get an external IP.
+- You should have permission to modify your DNS or `hosts` file.
 
-### Adım 1: RabbitMQ Dağıtımını Uygula
+## ⚙️ Step-by-Step Installation Instructions
 
-1. İlk olarak, RabbitMQ YAML konfigürasyonunu Kubernetes kümenize uygulayın. Bu, RabbitMQ için gerekli kaynakları oluşturacaktır.
+### Step 1: Apply the RabbitMQ Deployment
 
-   Aşağıdaki komutu çalıştırın:
+1. First, apply the RabbitMQ YAML configuration to your Kubernetes cluster. This will create the necessary resources for RabbitMQ.
+
+   Run the following command:
 
    ```bash
    kubectl apply -f rabbitmq.yaml
 
-2. Daha sonra kubectl get svc kısmında rabbitmq-loadbalancer servisinin aldığı ip adresini öğrenelim 
+
+2. Then let's find out the ip address of the rabbitmq-loadbalancer service in kubectl get svc 
 
 ![Kubectl get svc](kubectlgetsvc.png)
 
-3. DNS serveri olmayan bir ortamda çalışmıyor isek kendi host dosyamıza bunu bu şekilde ekleyeceğiz bu dosyanın windowstaki yolu bu şekildedir ( C:\Windows\System32\drivers\etc\hosts ).
+3. If we are not working in an environment without a DNS server, this is how we will add it to our own host file, the path of this file in the window is like this ( C:\Windows\System32\drivers\etc\hosts ).
+
 ![C:\Windows\System32\drivers\etc\host file ](hostfilescreenshot.png)
 
-4. Artık tarayıcı üzerinden labrabbitmq.mydomain.com:15672 urline gidip dashboarda erişebiliriz.
+4. Now we can access the dashboard by going to the url labrabbitmq.mydomain.com:15672 through the browser.
+
 ![labrabbitmq.mydomain.com ](urlscreenshot.png)
