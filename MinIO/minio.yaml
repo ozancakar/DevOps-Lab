@@ -1,0 +1,188 @@
+################################################################################
+# A) Secret - MinIO user/password
+################################################################################
+# This Secret stores the MinIO root username and password in Base64 format.
+# If you want to change the username and password, you can update the following values.
+# Username: admin
+# Password: admin
+
+# The MinIO username and password should be encoded in Base64 format.
+# To encode them in Base64, you can use the following commands:
+# echo -n "admin" | base64  # This command will encode the username in Base64
+# echo -n "admin" | base64  # This command will encode the password in Base64
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: minio-secret
+  namespace: default
+type: Opaque
+data:
+  MINIO_ROOT_USER: YWRtaW4=
+  MINIO_ROOT_PASSWORD: YWRtaW4=
+
+---
+################################################################################
+# 1) Headless Service (for StatefulSet)
+################################################################################
+# This headless service allows MinIO to resolve DNS for each pod in a StatefulSet.
+# The service exposes ports for MinIO API (port 9000) and MinIO Console (port 9001).
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio-hl-svc
+  namespace: default
+  labels:
+    app: minio
+spec:
+  clusterIP: None  # Headless service (no cluster IP)
+  ports:
+    - name: minio
+      port: 9000
+      targetPort: 9000
+      protocol: TCP
+    - name: console
+      port: 9001
+      targetPort: 9001
+      protocol: TCP
+  selector:
+    app: minio
+
+---
+################################################################################
+# 2) StatefulSet - MinIO (4 nodes, hostPath, 2 disks per node)
+################################################################################
+# This StatefulSet configures MinIO with 5 replicas. Each replica uses a hostPath volume for data storage
+# and enables high availability. NodeAffinity ensures pods only run on specific nodes.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: minio
+  namespace: default
+spec:
+  serviceName: minio-hl-svc
+  replicas: 3
+  selector:
+    matchLabels:
+      app: minio
+  template:
+    metadata:
+      labels:
+        app: minio
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values:
+                      - myworker1.server.hostname
+                      - myworker2.server.hostname
+                      - myworker3.server.hostname
+      containers:
+      - name: minio
+        image: quay.io/minio/minio:latest
+        args:
+          # MinIO creates a cluster using these endpoints
+          - server
+          - http://minio-0.minio-hl-svc.default.svc.cluster.local:9000/data1
+          - http://minio-1.minio-hl-svc.default.svc.cluster.local:9000/data1
+          - http://minio-2.minio-hl-svc.default.svc.cluster.local:9000/data1
+          - --console-address
+          - ":9001"
+        env:
+          - name: MINIO_ROOT_USER
+            valueFrom:
+              secretKeyRef:
+                name: minio-secret
+                key: MINIO_ROOT_USER
+          - name: MINIO_ROOT_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: minio-secret
+                key: MINIO_ROOT_PASSWORD
+        ports:
+          - containerPort: 9000
+            name: minio
+          - containerPort: 9001
+            name: console
+        volumeMounts:
+          - name: data1
+            mountPath: /data1
+      volumes:
+        - name: data1
+          hostPath:
+            path: /path/to/data1  # Path where MinIO stores data
+            type: DirectoryOrCreate
+
+---
+################################################################################
+# 3) MinIO Service (ClusterIP)
+################################################################################
+# This service exposes MinIO to the cluster using the same ports (9000 API, 9001 Console).
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio-service
+  namespace: default
+spec:
+  type: ClusterIP  # Internal service (not exposed externally)
+  selector:
+    app: minio
+  ports:
+    - name: minio
+      port: 9000
+      targetPort: 9000
+      protocol: TCP
+    - name: console
+      port: 9001
+      targetPort: 9001
+      protocol: TCP
+
+---
+################################################################################
+# 4) IngressRoute - S3 API (HTTPS)
+################################################################################
+# This IngressRoute exposes MinIO's S3 API (port 9000) externally via Traefik with HTTPS.
+# TLS certificate (gateway-tls) is required for secure communication.
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: minio-api
+  namespace: default
+spec:
+  entryPoints:
+    - websecure  # Uses HTTPS
+  routes:
+    - match: Host(`labminioendpoint.mydomain.com`)
+      kind: Rule
+      services:
+        - name: minio-service
+          port: 9000
+  tls:
+    secretName: mydomain-tls
+
+---
+################################################################################
+# 5) IngressRoute - MinIO Console (HTTPS)
+################################################################################
+# This IngressRoute exposes MinIO's web console (port 9001) externally via Traefik with HTTPS.
+# TLS certificate (gateway-tls) is required for secure communication.
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: minio-console
+  namespace: default
+spec:
+  entryPoints:
+    - websecure  # Uses HTTPS
+  routes:
+    - match: Host(`labminioconsole.mydomain.com`)
+      kind: Rule
+      services:
+        - name: minio-service
+          port: 9001 
+  tls:
+    secretName: mydomain-tls
