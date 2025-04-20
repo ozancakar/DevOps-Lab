@@ -1,5 +1,3 @@
-# RabbitMQ Kubernetes Kurulum Rehberi
-
 # RabbitMQ Kubernetes Installation Guide
 
 This guide will help you set up RabbitMQ in a Kubernetes environment. We will expose RabbitMQ using a `LoadBalancer` service through MetalLB, and we will explain step-by-step how to access the RabbitMQ management interface.
