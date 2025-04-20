@@ -1,63 +1,54 @@
 # DevOps Lab
 
-Bu repo, profesyonel Kubernetes ortamlarında kullanılan servislerin kurulumunu ve yapılandırmasını YAML dosyalarıyla belgelemek amacıyla oluşturulmuştur. İçerikte, Ingress yapılandırmalarından stateful servislerin dağıtımına kadar birçok örnek bulunmaktadır.
+This repository documents the installation and configuration of services used in professional Kubernetes environments using YAML files. It contains examples ranging from Ingress configurations to deploying stateful services.
 
-## 🚀 Genel Yaklaşım
+## Overview
 
-Bu çalışmada aşağıdaki sırayla bir altyapı kurulumu hedeflenmiştir:
+The goal of this project is to build an infrastructure with the following order of services:
 
 1. **Traefik**  
-   Kubernetes Ingress Controller olarak kullanılır. HTTPS ve sertifika yönetimi için ACME desteği vardır.
+   Used as the Kubernetes Ingress Controller, supporting HTTPS and certificate management via ACME.
 
 2. **MetalLB**  
-   LoadBalancer tipi servisler için Layer 2 IP dağıtımı sağlar. Traefik'e dış IP atanarak dış dünyadan erişim sağlanır.
+   Provides Layer 2 IP distribution for LoadBalancer-type services, enabling external access through Traefik.
 
-3. **Servis Dağıtımları**  
+3. **Service Deployments**  
+   The following services are deployed with Traefik through `IngressRoute`:
    - RabbitMQ
    - Redis Sentinel
    - MinIO
    - Elasticsearch + Kibana
 
-   Bu servislerin tamamı `IngressRoute` kullanılarak Traefik üzerinden HTTPS erişimli olarak yapılandırılmıştır.
+## Configuration Folders
 
-## 📁 Yapılandırma Klasörleri
-
-Her servis için ayrı bir klasör altında YAML dosyaları yer almaktadır. Her dizin, o servisin:
-- Deployment (ya da StatefulSet)
+Each service has a dedicated folder containing its YAML files. These folders contain:
+- Deployment (or StatefulSet)
 - Service
-- ConfigMap/Secret (varsa)
-- IngressRoute (Traefik için)
-şeklinde ayrılmıştır.
+- ConfigMap/Secret (if applicable)
+- IngressRoute (for Traefik)
 
----
+## Notes
+- Certificates are manually created and added to Traefik.
+- Persistent Volumes are configured using HostPath instead of PVC.
+- YAML files are created manually for each service rather than using Helm, focusing on a declarative approach.
 
-## 📌 Notlar
+## Service List
 
-- Sertifikalar manuel olarak oluşturulmuş ve Traefik'e eklenmiştir.
-- Persistent Volume kullanılmayan yapılar HostPath olarak yapılandırılmıştır.
-- Her servis için Helm yerine manuel YAML tercih edilmiştir (declarative yapı ön planda).
+| Service             | Description                                   |
+|---------------------|-----------------------------------------------|
+| **Traefik**          | Ingress Controller, TLS termination, ACME     |
+| **MetalLB**          | Layer 2 LoadBalancer IP distribution          |
+| **RabbitMQ**         | StatefulSet-based message queue               |
+| **Redis Sentinel**   | High Availability Redis setup                 |
+| **MinIO**            | S3-compatible object storage                  |
+| **Elasticsearch + Kibana** | Log analysis and visualization tools   |
 
-## 📜 İçerik Listesi
+## Objective
 
-| Servis | Açıklama |
-|--------|----------|
-| Traefik | Ingress Controller, TLS termination, ACME |
-| MetalLB | Layer 2 LoadBalancer IP dağıtımı |
-| RabbitMQ | Mesaj kuyruğu, StatefulSet olarak dağıtılmıştır |
-| Redis Sentinel | High Availability Redis yapısı |
-| MinIO | S3 uyumlu object storage servisi |
-| Elasticsearch + Kibana | Log analizi ve görselleştirme aracı |
+This project serves as both a personal portfolio and a real-world example. Each service is configured using simple, easy-to-understand YAML files and is open to contributions from anyone.
 
----
+## Contact
 
-## 🧠 Hedef
-
-Bu proje hem bireysel portföy geliştirme hem de gerçek dünya uygulamaları için örnek teşkil etmesi amacıyla hazırlanmıştır. Her servis, sade ve anlaşılır YAML dosyalarıyla kurulmuş olup, projeye katkı sağlamak isteyen herkes için geliştirilmeye açıktır.
-
----
-
-## 📫 İletişim
-
-GitHub: [ozancakar](https://github.com/ozancakar)  
-Mail: ozancakar49@gmail.com  
-LinkedIn: [linkedin.com/in/ozan-çakar-651490228](https://www.linkedin.com/in/ozan-%C3%A7akar-651490228/)
+- GitHub: [ozancakar](https://github.com/ozancakar)
+- Email: ozancakar49@gmail.com
+- LinkedIn: [ozan-çakar](https://www.linkedin.com/in/ozan-çakar-651490228)
