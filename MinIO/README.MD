@@ -15,5 +15,6 @@ You can follow the steps below to deploy MinIO to your Kubernetes environment.
 
 To deploy MinIO to your Kubernetes cluster, you can use the following command:
 
+
 ```bash
 kubectl apply -f minio.yaml
