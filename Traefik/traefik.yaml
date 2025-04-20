@@ -1,0 +1,197 @@
+# ==================== Service Account ==================== #
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: traefik-account
+
+# ==================== Cluster Role ==================== #
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: traefik-role
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - services
+      - secrets
+      - nodes
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - discovery.k8s.io
+    resources:
+      - endpointslices
+    verbs:
+      - list
+      - watch
+  - apiGroups:
+      - extensions
+      - networking.k8s.io
+    resources:
+      - ingresses
+      - ingressclasses
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - extensions
+      - networking.k8s.io
+    resources:
+      - ingresses/status
+    verbs:
+      - update
+  - apiGroups:
+      - traefik.io
+    resources:
+      - middlewares
+      - middlewaretcps
+      - ingressroutes
+      - traefikservices
+      - ingressroutetcps
+      - ingressrouteudps
+      - tlsoptions
+      - tlsstores
+      - serverstransports
+      - serverstransporttcps
+    verbs:
+      - get
+      - list
+      - watch
+
+# ==================== Cluster Role Binding ==================== #
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: traefik-role-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: traefik-role
+subjects:
+  - kind: ServiceAccount
+    name: traefik-account
+    namespace: default
+
+# ==================== Traefik Deployment ==================== #
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: traefik-deployment
+  labels:
+    app: traefik
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: traefik
+  template:
+    metadata:
+      labels:
+        app: traefik
+    spec:
+      serviceAccountName: traefik-account
+      containers:
+        - name: traefik
+          image: traefik:v3.3
+          args:
+            - --api.dashboard=true
+            - --providers.kubernetesingress
+            - --entrypoints.web.address=:80
+            - --entrypoints.websecure.address=:443
+          ports:
+            - name: web
+              containerPort: 80
+            - name: websecure
+              containerPort: 443
+            - name: dashboard
+              containerPort: 8080
+
+# ==================== Traefik Service ==================== #
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: traefik-dashboard-service
+spec:
+  type: LoadBalancer
+  ports:
+    - name: web
+      port: 80
+      targetPort: web
+    - name: websecure
+      port: 443
+      targetPort: websecure
+    - name: dashboard
+      port: 8080
+      targetPort: dashboard
+  selector:
+    app: traefik
+
+# ==================== Middleware: Basic Auth ==================== #
+# This middleware adds basic authentication for accessing the Traefik Dashboard.
+# It ensures that only users with a username and password can log in.
+# The middleware named "dashboard-auth" is referenced within the IngressRoute.
+# Below is its definition, along with the related Secret (containing base64-encoded htpasswd credentials).
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: dashboard-auth
+  namespace: default
+spec:
+  basicAuth:
+    secret: traefik-dashboard-auth  # References the secret defined below.
+
+# ==================== Secret: Basic Auth Credentials ==================== #
+# This secret contains the username and password used for basic authentication.
+# The credentials are generated using the "htpasswd" tool and encoded in base64.
+# Example command: htpasswd -nb admin MyStrongPassword | base64
+# The resulting base64 output is added to the "users" field below.
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: traefik-dashboard-auth
+  namespace: default
+type: Opaque
+data:
+  users: YWRtaW46JGFwcmwxJHRkMHc5S0hPb1RuYWFycmlVT1UvYnp0SExRa2RHZyAxMDBmQ2dmVk5UUlFvS3h5U2U=
+  # Above is a sample base64 output of htpasswd -nb admin MyStrongPassword.
+  # Replace this value with your own securely generated credentials.
+
+# ==================== IngressRoute: Traefik Dashboard Access ==================== #
+# This IngressRoute object allows access to the Traefik Dashboard via the "websecure" entrypoint using HTTPS.
+# It also applies the "dashboard-auth" middleware to enforce user authentication.
+# The certificate must have been created beforehand with the name "mydomain-tls".
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: traefik-dashboard
+  namespace: default
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`labtraefik.mydomain.com`)
+      kind: Rule
+      middlewares:
+        - name: dashboard-auth
+      services:
+        - name: api@internal
+          kind: TraefikService
+  tls:
+    secretName: mydomain-tls  # This TLS secret must be created beforehand.
+
+# Command to create TLS secret (if needed):
+# kubectl create secret tls mydomain-tls \
+#   --cert=/path/to/mydomain.pem \
+#   --key=/path/to/mydomain.key \
+#   -n default
