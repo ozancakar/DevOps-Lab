@@ -1,0 +1,213 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-config
+  namespace: sonarqube
+data:
+  POSTGRES_DB: sonarqube
+  POSTGRES_USER: sonarqube
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-secret
+  namespace: sonarqube
+type: Opaque
+data:
+  POSTGRES_PASSWORD: c29uYXJxdWJl # base64 encoded "sonarqube"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: sonarqube
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:15
+        ports:
+        - containerPort: 5432
+        envFrom:
+        - configMapRef:
+            name: postgres-config
+        - secretRef:
+            name: postgres-secret
+        volumeMounts:
+        - name: postgres-data
+          mountPath: /var/lib/postgresql/data
+      volumes:
+      - name: postgres-data
+        hostPath:
+          path: /data/sonarpostgres
+          type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-service
+  namespace: sonarqube
+spec:
+  selector:
+    app: postgres
+  ports:
+  - port: 5432
+    targetPort: 5432
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sonarqube
+  namespace: sonarqube
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sonarqube
+  template:
+    metadata:
+      labels:
+        app: sonarqube
+    spec:
+      securityContext:
+        fsGroup: 1000
+      initContainers:
+      - name: init-sysctl
+        image: busybox:1.36
+        command: ['sh', '-c']
+        args:
+        - |
+          sysctl -w vm.max_map_count=524288
+          sysctl -w fs.file-max=131072
+          chown -R 1000:1000 /opt/sonarqube/data
+          chown -R 1000:1000 /opt/sonarqube/logs
+          chown -R 1000:1000 /opt/sonarqube/extensions
+          chmod -R 755 /opt/sonarqube/data
+          chmod -R 755 /opt/sonarqube/logs
+          chmod -R 755 /opt/sonarqube/extensions
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - name: sonarqube-data
+          mountPath: /opt/sonarqube/data
+        - name: sonarqube-logs
+          mountPath: /opt/sonarqube/logs
+        - name: sonarqube-extensions
+          mountPath: /opt/sonarqube/extensions
+        - name: sonarqube-plugins
+          mountPath: /opt/sonarqube/extensions/plugins
+      containers:
+      - name: sonarqube
+        image: sonarqube:9.9.8-community
+        ports:
+        - containerPort: 9000
+        env:
+
+# !  The values in the comment line here are added for the use of the https://github.com/mc1arke/sonarqube-community-branch-plugin/releases/tag/1.14.0 plugin that allows SonarQube to analyze for different branches.
+
+# !  If you want to realize this, you can do this by placing the relevant plugin in /data/sonarqube/extensions/plugins where the hostpath file is located and activating the places with comment lines.
+
+        # - name: SONAR_WEB_JAVAADDITIONALOPTS
+        #   value: "-javaagent:/opt/sonarqube/extensions/plugins/sonarqube-community-branch-plugin-1.14.0.jar=web"
+        # - name: SONAR_CE_JAVAADDITIONALOPTS
+        #   value: "-javaagent:/opt/sonarqube/extensions/plugins/sonarqube-community-branch-plugin-1.14.0.jar=ce"
+
+        - name: SONAR_JDBC_URL
+          value: "jdbc:postgresql://postgres-service:5432/sonarqube"
+
+        - name: SONAR_JDBC_USERNAME
+          value: "sonarqube"
+
+        - name: SONAR_JDBC_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: POSTGRES_PASSWORD
+
+        - name: SONAR_ES_BOOTSTRAP_CHECKS_DISABLE
+          value: "true"
+
+        securityContext:
+          runAsUser: 1000
+          runAsGroup: 1000
+
+        volumeMounts:
+
+        - name: sonarqube-data
+          mountPath: /opt/sonarqube/data
+
+        - name: sonarqube-logs
+          mountPath: /opt/sonarqube/logs
+
+        - name: sonarqube-extensions
+          mountPath: /opt/sonarqube/extensions
+
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1"
+          limits:
+            memory: "4Gi"
+            cpu: "2"
+
+      volumes:
+
+      - name: sonarqube-data
+        hostPath:
+          path: /data/sonarqube/data
+          type: DirectoryOrCreate
+
+      - name: sonarqube-logs
+        hostPath:
+          path: /data/sonarqube/logs
+          type: DirectoryOrCreate
+
+      - name: sonarqube-extensions
+        hostPath:
+          path: /data/sonarqube/extensions
+          type: DirectoryOrCreate
+
+      - name: sonarqube-plugins
+        hostPath:
+          path: /data/sonarqube/extensions/plugins
+          type: DirectoryOrCreate
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sonarqube-service
+  namespace: sonarqube
+spec:
+  selector:
+    app: sonarqube
+  ports:
+  - port: 9000
+    targetPort: 9000
+
+# ! If the CA provider of the certificate you are using is not recognized by SonarQube, you can avoid the problem by typing http://[HOST-IP]:[SONARQUBE NodePort] in the SonarQube service url in Azure DevOps or other platforms you are using.
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: sonarqube-ingressroute
+  namespace: sonarqube
+spec:
+  entryPoints:
+    - websecure
+  routes:
+  - match: Host(`sonarqube.yourdomain.com`)
+    kind: Rule
+    services:
+    - name: sonarqube-service
+      port: 9000
+  tls:
+    secretName: yourdomain-tls
