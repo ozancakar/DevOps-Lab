@@ -1,20 +1,22 @@
-# ==================== Service Account ==================== #
+# ==================== ServiceAccount ====================
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: traefik-account
+  name: traefik
+  namespace: default
 
-# ==================== Cluster Role ==================== #
 ---
-kind: ClusterRole
+
+# ==================== ClusterRole ====================
 apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
 metadata:
   name: traefik-role
 rules:
-  - apiGroups:
-      - ""
+  - apiGroups: [""]
     resources:
       - services
+      - endpoints
       - secrets
       - nodes
     verbs:
@@ -29,7 +31,6 @@ rules:
       - list
       - watch
   - apiGroups:
-      - extensions
       - networking.k8s.io
     resources:
       - ingresses
@@ -39,7 +40,6 @@ rules:
       - list
       - watch
   - apiGroups:
-      - extensions
       - networking.k8s.io
     resources:
       - ingresses/status
@@ -63,10 +63,11 @@ rules:
       - list
       - watch
 
-# ==================== Cluster Role Binding ==================== #
 ---
-kind: ClusterRoleBinding
+
+# ==================== ClusterRoleBinding ====================
 apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
 metadata:
   name: traefik-role-binding
 roleRef:
@@ -75,15 +76,17 @@ roleRef:
   name: traefik-role
 subjects:
   - kind: ServiceAccount
-    name: traefik-account
+    name: traefik
     namespace: default
 
-# ==================== Traefik Deployment ==================== #
 ---
-kind: Deployment
+
+# ==================== Deployment ====================
 apiVersion: apps/v1
+kind: Deployment
 metadata:
-  name: traefik-deployment
+  name: traefik
+  namespace: default
   labels:
     app: traefik
 spec:
@@ -96,13 +99,14 @@ spec:
       labels:
         app: traefik
     spec:
-      serviceAccountName: traefik-account
+      serviceAccountName: traefik
       containers:
         - name: traefik
           image: traefik:v3.3
           args:
             - --api.dashboard=true
-            - --providers.kubernetesingress
+            - --api.insecure=true
+            - --providers.kubernetescrd
             - --entrypoints.web.address=:80
             - --entrypoints.websecure.address=:443
           ports:
@@ -113,48 +117,44 @@ spec:
             - name: dashboard
               containerPort: 8080
 
-# ==================== Traefik Service ==================== #
 ---
+
+# ==================== Service ====================
 apiVersion: v1
 kind: Service
 metadata:
-  name: traefik-dashboard-service
+  name: traefik
+  namespace: default
 spec:
   type: LoadBalancer
+  selector:
+    app: traefik
   ports:
     - name: web
       port: 80
-      targetPort: web
+      targetPort: 80
     - name: websecure
       port: 443
-      targetPort: websecure
+      targetPort: 443
     - name: dashboard
       port: 8080
-      targetPort: dashboard
-  selector:
-    app: traefik
+      targetPort: 8080
 
-# ==================== Middleware: Basic Auth ==================== #
-# This middleware adds basic authentication for accessing the Traefik Dashboard.
-# It ensures that only users with a username and password can log in.
-# The middleware named "dashboard-auth" is referenced within the IngressRoute.
-# Below is its definition, along with the related Secret (containing base64-encoded htpasswd credentials).
 ---
-apiVersion: traefik.containo.us/v1alpha1
+
+# ==================== Middleware (Basic Auth) ====================
+apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
   name: dashboard-auth
   namespace: default
 spec:
   basicAuth:
-    secret: traefik-dashboard-auth  # References the secret defined below.
+    secret: traefik-dashboard-auth
 
-# ==================== Secret: Basic Auth Credentials ==================== #
-# This secret contains the username and password used for basic authentication.
-# The credentials are generated using the "htpasswd" tool and encoded in base64.
-# Example command: htpasswd -nb admin MyStrongPassword | base64
-# The resulting base64 output is added to the "users" field below.
 ---
+
+# ==================== Secret (Basic Auth Credentials) ====================
 apiVersion: v1
 kind: Secret
 metadata:
@@ -162,16 +162,13 @@ metadata:
   namespace: default
 type: Opaque
 data:
-  users: YWRtaW46JGFwcmwxJHRkMHc5S0hPb1RuYWFycmlVT1UvYnp0SExRa2RHZyAxMDBmQ2dmVk5UUlFvS3h5U2U=
-  # Above is a sample base64 output of htpasswd -nb admin MyStrongPassword.
-  # Replace this value with your own securely generated credentials.
+  # admin:$apr1$randomsalt$hash şeklinde htpasswd ile oluşturulmalı.
+  users: YWRtaW46JGFwcjEkdmVIU1YwTlYkZ3FFSC5JbGhjZFlNc0hMNUdCSzNKLw==
 
-# ==================== IngressRoute: Traefik Dashboard Access ==================== #
-# This IngressRoute object allows access to the Traefik Dashboard via the "websecure" entrypoint using HTTPS.
-# It also applies the "dashboard-auth" middleware to enforce user authentication.
-# The certificate must have been created beforehand with the name "mydomain-tls".
 ---
-apiVersion: traefik.containo.us/v1alpha1
+
+# ==================== IngressRoute for Dashboard ====================
+apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
   name: traefik-dashboard
@@ -188,10 +185,5 @@ spec:
         - name: api@internal
           kind: TraefikService
   tls:
-    secretName: mydomain-tls  # This TLS secret must be created beforehand.
-
-# Command to create TLS secret (if needed):
-# kubectl create secret tls mydomain-tls \
-#   --cert=/path/to/mydomain.pem \
-#   --key=/path/to/mydomain.key \
-#   -n default
+    # TLS secret'iniz var ise buraya ismini yazın, yoksa TLS olmadan test edin.
+    secretName: mydomain-tls
