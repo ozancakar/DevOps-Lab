@@ -90,11 +90,15 @@ spec:
 | **RabbitMQ**             | Mesaj kuyruğu sistemi (StatefulSet)           |
 | **Redis Sentinel**       | Yüksek erişilebilirlik sağlayan Redis yapısı  |
 | **MinIO**                | S3 uyumlu obje depolama çözümü                |
-| **Elasticsearch + Kibana** | Log analizi ve görselleştirme araçları     |
+| **Elasticsearch + Kibana** | Log analizi ve görselleştirme araçları      |
+| **Prometheus + Grafana** | Metric toplama ve görselleştirme araçları     |
+| **SonarQube**            | Yazılım içerisindeki hataları tespit etme aracı|
 
 ## Amaç
 
-Bu proje hem kişisel bir portföy hem de gerçek dünya kullanım senaryolarına uygun bir örnek olarak hazırlandı. Tüm servisler sade, anlaşılır ve doğrudan YAML dosyalarıyla yapılandırılmıştır. Helm kullanılmadan tamamen deklaratif bir yapıyla ilerlenmiştir.
+Bu proje hem kişisel bir portföy hem de gerçek dünya kullanım senaryolarına uygun bir örnek olarak hazırlandı. Tüm servisler sade, anlaşılır ve doğrudan YAML dosyalarıyla yapılandırılmıştır. Temel servislerde Helm kullanılmadan tamamen deklaratif bir yapıyla ilerlenmiştir.
+Ancak Prometheus ve Grafana gibi kurulumlar helm ile yapılandırılmıştır.
+İlerleyen zamanlarda helm kullanımı ve yapılandırılması konularını da kapsayan repositoryler oluşturacağım.
 
 ## İletişim
 
