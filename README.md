@@ -19,6 +19,10 @@ Bu projede aşağıdaki hizmetleri içeren bir altyapı oluşturulmuştur:
    - Redis Sentinel
    - MinIO
    - Elasticsearch + Kibana
+   - SonarQube
+   - Prometheus
+   - Grafana
+
 
 ## Yapılandırma Klasörleri
 
