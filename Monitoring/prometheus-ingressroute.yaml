@@ -1,0 +1,19 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: prometheus
+  namespace: monitoring
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`ozanprometheus.domain.com`)
+      kind: Rule
+      services:
+        - name: prometheus-server
+          port: 80
+      middlewares:
+        - name: dashboard-auth
+          namespace: default
+  tls:
+    secretName: mydomain-tls
