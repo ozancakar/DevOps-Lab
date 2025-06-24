@@ -79,6 +79,113 @@ kubectl describe pod <pod-name> -n monitoring
 
 ---
 
+## 7. OpenTelemetry Collector Services and Prometheus Integration
+
+To enable Prometheus to scrape metrics from OpenTelemetry Collector, you need to define specific services and update Prometheus configuration accordingly.
+
+### 7.1. Prometheus ConfigMap Update
+
+Edit your Prometheus ConfigMap (`prometheus-server`) to include the following scrape configurations. This allows Prometheus UI under **Targets** to list and scrape these endpoints:
+
+```yaml
+# Please edit the object below. Lines beginning with a '#' will be ignored,
+# and an empty file will abort the edit. If an error occurs while saving this file will be
+# reopened with the relevant failures.
+#
+apiVersion: v1
+data:
+  alerting_rules.yml: |
+    {}
+  alerts: |
+    {}
+  allow-snippet-annotations: "false"
+  prometheus.yml: |
+    global:
+      evaluation_interval: 1m
+      scrape_interval: 1m
+      scrape_timeout: 10s
+    rule_files:
+    - /etc/config/recording_rules.yml
+    - /etc/config/alerting_rules.yml
+    - /etc/config/rules
+    - /etc/config/alerts
+    scrape_configs:
+
+    - job_name: 'otel-collector'
+      static_configs:
+        - targets: ['otel-collector-prometheus.monitoring.svc.cluster.local:8889']
+
+    - job_name: 'otel-collector-self'
+      static_configs:
+        - targets: ['otel-collector-telemetry.monitoring.svc.cluster.local:8888']
+```
+
+---
+
+### 7.2. OpenTelemetry Collector Kubernetes Services
+
+You should have the following services defined in your repository to expose OpenTelemetry Collector endpoints:
+
+**otel-collector-prometheus.yaml**
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: otel-collector-prometheus
+  namespace: monitoring
+spec:
+  selector:
+    app.kubernetes.io/name: opentelemetry-collector
+  ports:
+    - protocol: TCP
+      port: 4317
+      targetPort: 4317
+      name: otlp-grpc
+    - protocol: TCP
+      port: 4318
+      targetPort: 4318
+      name: otlp-http
+    - protocol: TCP
+      port: 8889
+      targetPort: 8889
+      name: prometheus-metrics
+```
+
+This service exposes OpenTelemetry Collector’s OTLP gRPC and HTTP ports along with the Prometheus metrics port (`8889`), which Prometheus scrapes for telemetry data.
+
+---
+
+**otel-own-metrics-svc.yaml**
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: otel-collector-telemetry
+  namespace: monitoring
+spec:
+  selector:
+    app.kubernetes.io/name: opentelemetry-collector
+  ports:
+    - port: 8888
+      protocol: TCP
+      targetPort: 8888
+  type: ClusterIP
+```
+
+This service exposes the OpenTelemetry Collector’s own telemetry metrics on port `8888`. It is accessible only within the cluster.
+
+---
+
+### Summary
+
+- Define Kubernetes Services for OpenTelemetry Collector to expose telemetry and metrics endpoints.  
+- Update Prometheus ConfigMap scrape_configs to include these service endpoints.  
+- This enables Prometheus UI to show these targets under **Targets** and scrape metrics correctly.
+
+---
+
 # Summary
 
 - Added and updated Helm repositories.  
@@ -86,7 +193,8 @@ kubectl describe pod <pod-name> -n monitoring
 - Installed Prometheus and Alertmanager via Helm.  
 - Cleaned up old PVCs.  
 - Prepared IngressRoute files for external access with your own SSL certificate.  
-- Checked pod statuses.
+- Checked pod statuses.  
+- Added OpenTelemetry Collector services and Prometheus integration details.
 
 ---
 
