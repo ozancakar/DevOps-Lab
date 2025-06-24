@@ -1,41 +1,63 @@
+# Basic OpenTelemetry Collector confugiration
 mode: deployment
+replicaCount: 1
 
 image:
   repository: otel/opentelemetry-collector-contrib
-  tag: latest
+  tag: "latest"
 
 resources:
   limits:
-    cpu: 500m
+    cpu: 200m
     memory: 256Mi
   requests:
     cpu: 100m
     memory: 128Mi
 
+# OpenTelemetry Collector Confugirations
 config:
   receivers:
-    otlp:  # Uygulamalardan veri almak için OTLP protokolü (OpenTelemetry Protocol)
+
+    hostmetrics:
+# The hostmetrics receiver collects metrics from the host system
+      scrapers:
+        cpu:
+        disk:
+        filesystem:
+        load:
+        memory:
+        network:
+
+# Prometheus receiver configuration for scraping metrics from the OpenTelemetry Collector itself 
+    prometheus:
+      config:
+        scrape_configs:
+          - job_name: "otelcol"
+            scrape_interval: 10s
+            static_configs:
+              - targets: ["0.0.0.0:8888"]
+
+
+    # OTLP receiver - to receive metrics from applications
+    otlp:
       protocols:
         grpc:
           endpoint: 0.0.0.0:4317
-
         http:
           endpoint: 0.0.0.0:4318
 
-
   processors:
-    batch: {}  # Gelen veriler topluca işlenip gönderilir (daha verimli)
+    batch: {}
 
   exporters:
-    prometheus:  # Prometheus’un scrape edebileceği HTTP endpoint tanımı
-      endpoint: "0.0.0.0:8889"  # Collector bu porttan metriklerini açar (/metrics)
+    # Provides metrics in Prometheus format
+    prometheus:
+      endpoint: "0.0.0.0:8889"
+
 
   service:
-    telemetry:
-      metrics:
-        address: "0.0.0.0:8888"
     pipelines:
       metrics:
-        receivers: [otlp]
+        receivers: [otlp, hostmetrics]
         processors: [batch]
         exporters: [prometheus]
