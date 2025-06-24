@@ -85,39 +85,17 @@ To enable Prometheus to scrape metrics from OpenTelemetry Collector, you need to
 
 ### 7.1. Prometheus ConfigMap Update
 
-Edit your Prometheus ConfigMap (`prometheus-server`) to include the following scrape configurations. This allows Prometheus UI under **Targets** to list and scrape these endpoints:
+To enable Prometheus to scrape metrics from OpenTelemetry Collector, you only need to add the following scrape configurations inside the `scrape_configs` section of the `prometheus.yml` file within the `prometheus-server` ConfigMap.  
+There is no need to modify other parts of the ConfigMap.
 
 ```yaml
-# Please edit the object below. Lines beginning with a '#' will be ignored,
-# and an empty file will abort the edit. If an error occurs while saving this file will be
-# reopened with the relevant failures.
-#
-apiVersion: v1
-data:
-  alerting_rules.yml: |
-    {}
-  alerts: |
-    {}
-  allow-snippet-annotations: "false"
-  prometheus.yml: |
-    global:
-      evaluation_interval: 1m
-      scrape_interval: 1m
-      scrape_timeout: 10s
-    rule_files:
-    - /etc/config/recording_rules.yml
-    - /etc/config/alerting_rules.yml
-    - /etc/config/rules
-    - /etc/config/alerts
-    scrape_configs:
+- job_name: 'otel-collector'
+  static_configs:
+    - targets: ['otel-collector-prometheus.monitoring.svc.cluster.local:8889']
 
-    - job_name: 'otel-collector'
-      static_configs:
-        - targets: ['otel-collector-prometheus.monitoring.svc.cluster.local:8889']
-
-    - job_name: 'otel-collector-self'
-      static_configs:
-        - targets: ['otel-collector-telemetry.monitoring.svc.cluster.local:8888']
+- job_name: 'otel-collector-self'
+  static_configs:
+    - targets: ['otel-collector-telemetry.monitoring.svc.cluster.local:8888']
 ```
 
 ---
