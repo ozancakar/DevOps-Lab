@@ -91,11 +91,16 @@ There is no need to modify other parts of the ConfigMap.
 ```yaml
 - job_name: 'otel-collector'
   static_configs:
-    - targets: ['otel-collector-prometheus.monitoring.svc.cluster.local:8889']
+    - targets: ['opentelemetry-external-metrics.monitoring.svc.cluster.local:8889']
+  scrape_interval: 30s
+  scrape_timeout: 10s
+  metrics_path: /metrics
 
 - job_name: 'otel-collector-self'
   static_configs:
-    - targets: ['otel-collector-telemetry.monitoring.svc.cluster.local:8888']
+    - targets: ['opentelemetry-internal-metrics.monitoring.svc.cluster.local:8888']
+  scrape_interval: 30s
+  scrape_timeout: 10s  
 ```
 
 ---
@@ -104,43 +109,32 @@ There is no need to modify other parts of the ConfigMap.
 
 You should have the following services defined in your repository to expose OpenTelemetry Collector endpoints:
 
-**otel-collector-prometheus.yaml**
+**otel-collector-svc.yaml**
 
 ```yaml
+# This service exposes OpenTelemetry Collector’s OTLP gRPC and HTTP ports along with the Prometheus metrics port (`8889`), which Prometheus scrapes for telemetry data.
+---
 apiVersion: v1
 kind: Service
 metadata:
-  name: otel-collector-prometheus
+  name: opentelemetry-external-metrics
   namespace: monitoring
 spec:
   selector:
     app.kubernetes.io/name: opentelemetry-collector
   ports:
     - protocol: TCP
-      port: 4317
-      targetPort: 4317
-      name: otlp-grpc
-    - protocol: TCP
-      port: 4318
-      targetPort: 4318
-      name: otlp-http
-    - protocol: TCP
       port: 8889
       targetPort: 8889
-      name: prometheus-metrics
-```
-
-This service exposes OpenTelemetry Collector’s OTLP gRPC and HTTP ports along with the Prometheus metrics port (`8889`), which Prometheus scrapes for telemetry data.
+      type: ClusterIP
 
 ---
+# This service exposes the OpenTelemetry Collector’s own telemetry metrics on port `8888`. It is accessible only within the cluster.
 
-**otel-own-metrics-svc.yaml**
-
-```yaml
 apiVersion: v1
 kind: Service
 metadata:
-  name: otel-collector-telemetry
+  name: opentelemetry-internal-metrics
   namespace: monitoring
 spec:
   selector:
@@ -151,8 +145,6 @@ spec:
       targetPort: 8888
   type: ClusterIP
 ```
-
-This service exposes the OpenTelemetry Collector’s own telemetry metrics on port `8888`. It is accessible only within the cluster.
 
 ---
 
