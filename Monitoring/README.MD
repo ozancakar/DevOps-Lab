@@ -123,10 +123,11 @@ spec:
   selector:
     app.kubernetes.io/name: opentelemetry-collector
   ports:
-    - protocol: TCP
+    - name: prometheus-external
+      protocol: TCP
       port: 8889
       targetPort: 8889
-      type: ClusterIP
+  type: ClusterIP
 
 ---
 # This service exposes the OpenTelemetry Collector’s own telemetry metrics on port `8888`. It is accessible only within the cluster.
@@ -140,10 +141,12 @@ spec:
   selector:
     app.kubernetes.io/name: opentelemetry-collector
   ports:
-    - port: 8888
+    - name: prometheus-internal
+      port: 8888
       protocol: TCP
       targetPort: 8888
   type: ClusterIP
+
 ```
 
 ---
