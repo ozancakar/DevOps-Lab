@@ -1,20 +1,20 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: go-metric-app
+  name: dotnet-otel-collector-demo-app
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: go-metric-app
+      app: dotnet-otel-collector-demo-app
   template:
     metadata:
       labels:
-        app: go-metric-app
+        app: dotnet-otel-collector-demo-app
     spec:
       containers:
-      - name: go-metric-app
-        image: ozanncakar/go-metric-app:latest
+      - name: dotnet-otel-collector-demo-app
+        image: ozanncakar/dotnet-otel-collector-demo-app:latest
         ports:
         - containerPort: 8080
 
@@ -22,11 +22,11 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: go-metric-app-service
+  name: dotnet-otel-collector-demo-app-service
 spec:
   type: NodePort
   selector:
-    app: go-metric-app
+    app: dotnet-otel-collector-demo-app
   ports:
   - protocol: TCP
     port: 8080
