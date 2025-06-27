@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: dotnet-otel-collector-demo-app
-        image: ozanncakar/dotnet-otel-collector-demo-app:latest
+        image: ozanncakar/dotnet-otel-collector-demo:latest
         ports:
         - containerPort: 8080
 
