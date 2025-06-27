@@ -1,0 +1,35 @@
+# Visual Studio and .NET build files
+
+bin/
+obj/
+
+# User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Visual Studio temp files
+.vs/
+
+# Packages (nuget)
+*.nupkg
+*.snupkg
+
+# Logs
+*.log
+
+# Build ve publish output
+publish/
+*.Publish.xml
+
+# Rider IDE files
+.idea/
+
+# Other temporary dosyalar
+*.tmp
+*.bak
+*.swp
+
+# Dotnet local tool cache
+.dotnet_tool_cache/
