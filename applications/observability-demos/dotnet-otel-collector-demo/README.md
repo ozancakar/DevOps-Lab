@@ -30,7 +30,7 @@ git clone https://github.com/ozancakar/DevOps-Lab.git
 cd DevOps-Lab/applications/observability-demos/dotnet-otel-collector-demo
 
 # Deploy all components
-kubectl apply -f k8s/
+kubectl apply -f donet-otel-collector-demo-k8s.yaml
 
 # Check deployment status
 kubectl get pods
@@ -48,14 +48,9 @@ dotnet run
 ## Project Structure
 
 ```
-├── src/WebApi/                 # .NET Web API application
-├── k8s/                       # Kubernetes manifests
-│   ├── webapp-deployment.yaml # Web API deployment & service
-│   ├── otel-collector.yaml    # OpenTelemetry Collector
-│   └── observability.yaml     # Jaeger & Prometheus
-├── config/
-│   └── otel-collector.yaml    # Collector configuration
-└── Dockerfile                 # Container image
+├── src/WebApi/                            # .NET Web API application
+└── Dockerfile                             # Container image
+└── donet-otel-collector-demo-k8s.yaml     # Kubernetes deployment and service yaml
 ```
 
 ## API Endpoints
@@ -108,7 +103,6 @@ histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))
 
 ```bash
 # Check logs
-kubectl logs -l app=webapp
 kubectl logs -l app=otel-collector
 
 # Test connectivity
