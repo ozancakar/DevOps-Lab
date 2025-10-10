@@ -1,3 +1,5 @@
+---
+
 1) ### Tek PowerShell Oturumu İçin Venv Oluşturabilmek Ve Script Çalıştırabilmek İçin Aşağıdaki Komutu Yazabiliriz. ###
 
 ``` Bash
