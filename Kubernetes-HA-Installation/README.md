@@ -218,11 +218,14 @@ helm repo update
 
 
 kubectl create namespace kube-system
-helm install cilium cilium/cilium --version 1.14.4 \
+helm install cilium cilium/cilium \
   --namespace kube-system \
-  --set kubeProxyReplacement=strict \
+  --create-namespace \
+  --set kubeProxyReplacement=true \
   --set k8sServiceHost=10.31.48.100 \
-  --set k8sServicePort=6443
+  --set k8sServicePort=6443 \
+  --set ipam.mode=kubernetes \
+  --set gatewayAPI.enabled=true
 ```
 
 ---
