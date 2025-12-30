@@ -228,9 +228,18 @@ helm install cilium cilium/cilium \
   --set gatewayAPI.enabled=true
 ```
 
+## ✅ 9. Bypass TLS for local test environment
+
+```bash
+openssl s_client -showcerts -connect registry-1.docker.io:443 </dev/null | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' > /usr/local/share/ca-certificates/docker-registry.crt
+ls -l /usr/local/share/ca-certificates/docker-registry.crt
+update-ca-certificates
+
+```
+
 ---
 
-## ✅ 9. Kontroller
+## ✅ 10. Control
 
 ```bash
 kubectl get nodes
