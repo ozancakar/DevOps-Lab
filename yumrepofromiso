@@ -1,0 +1,26 @@
+mkdir -p /mnt/rhel9-iso
+mount /dev/sr0 /mnt/rhel9-iso
+
+
+cat > /etc/yum.repos.d/rhel9-local.repo << 'EOF'
+[rhel9-BaseOS]
+name=RHEL 9 - BaseOS (Local)
+baseurl=file:///mnt/rhel9-iso/BaseOS
+enabled=1
+gpgcheck=1
+gpgkey=file:///mnt/rhel9-iso/RPM-GPG-KEY-redhat-release
+
+[rhel9-AppStream]
+name=RHEL 9 - AppStream (Local)
+baseurl=file:///mnt/rhel9-iso/AppStream
+enabled=1
+gpgcheck=1
+gpgkey=file:///mnt/rhel9-iso/RPM-GPG-KEY-redhat-release
+EOF
+
+
+
+
+dnf clean all
+dnf repolist
+ 
